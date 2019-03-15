@@ -1,0 +1,31 @@
+# ===================================
+#  Form Behavior Config
+# ===================================
+
+# Record name
+name: Log
+
+# Model Form Field configuration
+form: $/octobro/wallet/models/log/fields.yaml
+
+# Model Class name
+modelClass: Octobro\Wallet\Models\Log
+
+# Default redirect location
+defaultRedirect: octobro/wallet/logs
+
+# Create page
+create:
+    title: Create Log
+    redirect: octobro/wallet/logs/update/:id
+    redirectClose: octobro/wallet/logs
+
+# Update page
+update:
+    title: Edit Log
+    redirect: octobro/wallet/logs
+    redirectClose: octobro/wallet/logs
+
+# Preview page
+preview:
+    title: Preview Log

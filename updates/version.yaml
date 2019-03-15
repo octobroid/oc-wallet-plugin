@@ -1,0 +1,10 @@
+1.0.1: First version of wallet
+1.0.2:
+    - Add wallet amount to users table
+    - add_wallet_amount_to_users_table.php
+1.0.3:
+    - Create logs table
+    - create_logs_table.php
+1.0.4:
+    - Modify related column
+    - modify_related_column.php

@@ -1,0 +1,15 @@
+# ===================================
+#  Form Field Definitions
+# ===================================
+
+fields:
+    description:
+        label: Description
+        span: auto
+    
+    amount:
+        label: Amount
+        comment: Use negative or positive value
+        type: number
+        span: auto
+

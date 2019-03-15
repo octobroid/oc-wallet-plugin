@@ -1,0 +1,25 @@
+<?php namespace Octobro\Wallet\Controllers;
+
+use BackendMenu;
+use Backend\Classes\Controller;
+
+/**
+ * Logs Back-end Controller
+ */
+class Logs extends Controller
+{
+    public $implement = [
+        'Backend.Behaviors.FormController',
+        'Backend.Behaviors.ListController'
+    ];
+
+    public $formConfig = 'config_form.yaml';
+    public $listConfig = 'config_list.yaml';
+
+    public function __construct()
+    {
+        parent::__construct();
+
+        BackendMenu::setContext('Octobro.Wallet', 'wallet', 'logs');
+    }
+}

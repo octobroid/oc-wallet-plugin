@@ -1,0 +1,15 @@
+# ===================================
+#  Relation Behavior Config
+# ===================================
+
+wallet_logs:
+    label: Wallet
+    list: ~/plugins/octobro/wallet/models/log/columns.yaml
+    form: ~/plugins/octobro/wallet/models/log/fields.yaml
+    view:
+        toolbarButtons: create
+        showSearch: true
+        defaultSort:
+            column: id
+            direction: desc
+        recordsPerPage: 20
