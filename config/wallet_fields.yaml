@@ -1,10 +1,3 @@
-phone:
-    label: Phone
-    tab: Profile
-address:
-    label: Address
-    tab: Profile
-
 wallet_logs:
     type: partial
     path: $/octobro/wallet/models/log/_relation_logs.htm

@@ -8,3 +8,6 @@
 1.0.4:
     - Modify related column
     - modify_related_column.php
+1.1.0:
+    - Set owner morph in wallet for various models
+    - set_morph_wallet_owner.php

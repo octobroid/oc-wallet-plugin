@@ -4,8 +4,7 @@ use Db;
 use Model;
 use Exception;
 use ApplicationException;
-use Cashback as CashbackHelper;
-use RainLab\User\Models\User;
+use Octobro\Wallet\Classes\Cashback as CashbackHelper;
 
 /**
  * Log Model
@@ -32,16 +31,12 @@ class Log extends Model
      */
     public $hasOne = [];
     public $hasMany = [];
-    public $belongsTo = [
-        'user' => 'RainLab\User\Models\User'
-    ];
+    public $belongsTo = [];
     public $belongsToMany = [];
     public $morphTo = [];
     public $morphOne = [
-        'order' => [
-            'OpenTrip\Commerce\Models\Order',
-            'name' => 'related'
-        ]
+        'related' => [],
+        'owner' => []
     ];
     public $morphMany = [];
     public $attachOne = [];
@@ -50,36 +45,40 @@ class Log extends Model
     public function beforeCreate()
     {
         if (! $this->updated_amount) {
-            $this->updated_amount = $this->user->wallet_amount + $this->amount;
+            $this->updated_amount = $this->owner->wallet_amount + $this->amount;
 
-            $user = $this->user;
-            $user->wallet_amount = $this->updated_amount;
-            $user->save();
+            $owner = $this->owner;
+            $owner->wallet_amount = $this->updated_amount;
+            $owner->save();
         }
     }
 
-    public static function addCashback($order, $desc = null, $status = null)
+    public static function addCashback($order, $owner, $desc = null, $status = null)
     {
         Db::beginTransaction();
 
+        if (!$order) throw new ApplicationException('Order not found');
+
+        if (!$owner) throw new ApplicationException('Owner not found');
+
         try {
-            $user = User::find($order->user_id);
             $cashback = CashbackHelper::calculate($order);
-            $prevWalletAmount = $user->wallet_amount;
+            $prevWalletAmount = $owner->wallet_amount;
 
             $log = new static;
-            $log->user_id = $order->user_id;
             $log->description = $desc;
             $log->previous_amount = $prevWalletAmount;
             $log->updated_amount = $prevWalletAmount + $cashback;
             $log->amount = $cashback;
+            $log->owner_id = $owner->id;
+            $log->owner_type = get_class($owner);
             $log->related_id = $order->id;
             $log->related_type = get_class($order);
             $log->status = $status;
             $log->save();
 
-            $user->wallet_amount = $prevWalletAmount + $cashback;
-            $user->save();
+            $owner->wallet_amount = $prevWalletAmount + $cashback;
+            $owner->save();
         } catch (Exception $e) {
             Db::rollback();
             throw new ApplicationException($e->getMessage());
@@ -88,16 +87,21 @@ class Log extends Model
         Db::commit();
     }
 
-    public static function createLog($related, $user, $amount, $status = null, $desc = null)
+    public static function createLog($related, $owner, $amount, $status = null, $desc = null)
     {
         Db::beginTransaction();
 
+        if (!$related) throw new ApplicationException('Related not found');
+
+        if (!$owner) throw new ApplicationException('Owner not found');
+
         try {
-            $prevWalletAmount = $user->wallet_amount;
+            $prevWalletAmount = $owner->wallet_amount;
             $updatedAmount = $prevWalletAmount + $amount;
 
             $log = new static;
-            $log->user_id = $user->id;
+            $log->owner_id = $owner->id;
+            $log->owner_type = get_class($owner);
             $log->description = $desc;
             $log->previous_amount = $prevWalletAmount;
             $log->updated_amount = $updatedAmount;
@@ -111,8 +115,8 @@ class Log extends Model
             $log->status = $status;
             $log->save();
 
-            $user->wallet_amount = $updatedAmount;
-            $user->save();
+            $owner->wallet_amount = $updatedAmount;
+            $owner->save();
         } catch (Exception $e) {
             Db::rollback();
             throw new ApplicationException($e->getMessage());

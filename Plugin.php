@@ -4,16 +4,15 @@ use Yaml;
 use File;
 use Backend;
 use System\Classes\PluginBase;
-use RainLab\User\Models\User;
 use Illuminate\Foundation\AliasLoader;
-use RainLab\User\Controllers\Users as UsersController;
 
 /**
  * Wallet Plugin Information File
  */
 class Plugin extends PluginBase
 {
-    public $require = ['RainLab.User'];
+    public $require = ['Responsiv.Pay'];
+
     /**
      * Returns information about this plugin.
      *
@@ -25,7 +24,7 @@ class Plugin extends PluginBase
             'name'        => 'Wallet',
             'description' => 'No description provided yet...',
             'author'      => 'Octobro',
-            'icon'        => 'icon-leaf'
+            'icon'        => 'icon-google-wallet'
         ];
     }
 
@@ -36,23 +35,7 @@ class Plugin extends PluginBase
      */
     public function boot()
     {
-        User::extend(function($model) {
-            $model->hasMany['wallet_logs'] = [
-                'Octobro\Wallet\Models\Log'
-            ];
-        });
 
-        UsersController::extend(function($controller) {
-            $controller->implement[] = 'Backend.Behaviors.RelationController';
-            $controller->relationConfig =  __DIR__ . '/config/wallet_logs_relation.yaml';
-        });
-
-        UsersController::extendFormFields(function($form, $model, $context) {
-            if (! $model instanceof \Rainlab\User\Models\User) return;
-            $configFile = __DIR__ . '/config/profile.yaml';
-            $config = Yaml::parse(File::get($configFile));
-            $form->addTabFields($config);
-        });
     }
 
     /**
@@ -66,9 +49,17 @@ class Plugin extends PluginBase
             'wallet' => [
                 'label'       => 'Wallet',
                 'url'         => Backend::url('octobro/wallet/logs'),
-                'icon'        => 'icon-leaf',
+                'icon'        => 'icon-google-wallet',
                 'permissions' => ['octobro.wallet.*'],
                 'order'       => 500,
+                'sideMenu' => [
+                    'logs' => [
+                        'label'       => 'Logs',
+                        'icon'        => 'icon-history',
+                        'url'         => Backend::url('octobro/wallet/logs'),
+                        'permissions' => ['octobro.wallet.*']
+                    ],
+                ]
             ],
         ];
     }

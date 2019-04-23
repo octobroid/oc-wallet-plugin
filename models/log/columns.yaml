@@ -7,12 +7,6 @@ columns:
         label: ID
         clickable: false
 
-    user_id:
-        label: User
-        relation: user
-        select: name
-        searchable: true
-
     description:
         label: description
         searchable: true
