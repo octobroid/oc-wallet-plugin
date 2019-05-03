@@ -22,69 +22,119 @@ class Wallet extends ComponentBase
 
     public function defineProperties()
     {
-        return [];
+        return [
+            'invoiceHash' => [
+                'title'       => 'Invoice Hash',
+                'description' => 'The URL route parameter used for looking up the invoice by its hash.',
+                'default'     => '{{ :invoiceHash }}',
+                'type'        => 'string'
+            ],
+            'ownerClass' => [
+                'title'         => 'Owner Class',
+                'description'   => 'The class name used by owner model.',
+                'default'       => '{{ :ownerClass }}',
+                'type'          => 'string'
+            ],
+            'ownerId' => [
+                'title'         => 'Owner ID',
+                'description'   => 'The ID of owner model.',
+                'default'       => '{{ :ownerId }}',
+                'type'          => 'string'
+            ]
+        ];
+    }
+
+    public function onRun()
+    {
+        if (!$this->property('ownerClass')) throw new ApplicationException('Owner class not found');
+
+        if (!class_exists($this->propery('ownerClass'))) throw new ApplicationException('Class for invoice owner not found');
+
+        if (!$this->property('ownerId')) throw new ApplicationException('Owner ID not found');
+
+        $this->page['owner'] = $owner = $this->property('ownerClass')::find($this->property('ownerId'));
+
+        if (!$owner) throw new ApplicationException('Owner not found');
     }
 
     public function onToggleWallet()
     {
-        $user = Auth::getUser();
-        $invoice = Invoice::whereHash(post('invoice_hash'))->first();
+        if (!$this->property('invoiceHash')) throw new ApplicationException('Invoice hash not found');
+
+        if (!$this->property('ownerClass')) throw new ApplicationException('Owner class not found');
+
+        if (!class_exists($this->propery('ownerClass'))) throw new ApplicationException('Class for invoice owner not found');
+
+        if (!$this->property('ownerId')) throw new ApplicationException('Owner ID not found');
+
+        $invoice = Invoice::whereHash($this->property('invoiceHash'))->first();
 
         if (! $invoice) {
             throw new ApplicationException('Invoice not found');
         }
 
+        $owner = $this->property('ownerClass')::find($this->property('ownerId'));
+
+        if (!$owner) throw new ApplicationException('Owner not found');
+
         /**
-         * User dapat membayar penuh dengan saldo dompet
+         * User could pay with their whole wallet amount.
          **/
-        if ($user->wallet_amount >= $invoice->total and post('use_wallet') == 0) {
+        if ($owner->wallet_amount >= $invoice->total and post('use_wallet') == 0) {
             $this->page['invoice'] = $invoice;
 
             return true;
         }
 
         /**
-         * Saldo dompet hanya dapat membayar sebagian dari total tagihan
+         * Wallet amount could only pay for some of the invoice
          **/
         $this->page['paymentMethods'] = TypeModel::listApplicable($invoice->country_id);
     }
 
     /**
-     * Ajax handler untuk membayar sebagian dengan dompet 
+     * Ajax for paying invoice using wallet
      */
     public function onUseWallet()
     {
+        if (!$this->property('invoiceHash')) {
+            throw new ApplicationException('Invoice hash not found');
+        }
+
+        if (!$this->property('ownerClass')) {
+            throw new ApplicationException('Class name for invoice owner not found');
+        }
+
+        if (!class_exists($this->propery('ownerClass'))) {
+            throw new ApplicationException('Class for invoice owner not found');
+        }
+
+        if (!$this->property('ownerId')) {
+            throw new ApplicationException('Owner ID not found');
+        }
+
         if (post('use_wallet') <= 0) return;
 
-        $invoice = Invoice::whereHash(post('invoice_hash'))->first();
+        if (post('wallet_amount') <= 0) return;
 
-        if (! $invoice) {
+        $invoice = Invoice::whereHash($this->property('invoiceHash'))->first();
+
+        if (!$invoice) {
             throw new ApplicationException('Invoice not found');
         }
 
-        WalletHelper::use($invoice);
+        $owner = $this->property('ownerClass')::find($this->property('ownerId'));
 
-        return json_encode([
-            'invoice_total' => $invoice->total
-        ]);
-    }
-
-    /**
-     * Ajax handler untuk membayar penuh dengan dompet 
-     */
-    public function onFullPayment()
-    {
-        $user = Auth::getUser();
-
-        $invoice = Invoice::whereHash(post('invoice_hash'))->first();
-
-        if (! $invoice) {
-            throw new ApplicationException('Invoice not found');
+        if (!$owner) {
+            throw new ApplicationException('Owner data not found');
         }
 
-        // Use all the wallet
-        WalletHelper::use($invoice);
+        $ownerName = Schema::hasColumn($owner->getTable(), 'name') ? $owner->name : post('owner_name');
 
-        return redirect()->to(post('redirect'));
+        $amount = post('use_full_wallet') == true ? $invoice->total : post('wallet_amount');
+
+        WalletHelper::use($owner, $ownerName, $invoice, $amount, null);
+
+        return \Redirect::to($invoice->getReceiptUrl());
     }
 }
