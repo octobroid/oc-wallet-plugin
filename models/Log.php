@@ -4,7 +4,6 @@ use Db;
 use Model;
 use Exception;
 use ApplicationException;
-use Octobro\Wallet\Classes\Cashback as CashbackHelper;
 
 /**
  * Log Model
@@ -33,11 +32,11 @@ class Log extends Model
     public $hasMany = [];
     public $belongsTo = [];
     public $belongsToMany = [];
-    public $morphTo = [];
-    public $morphOne = [
+    public $morphTo = [
         'related' => [],
         'owner' => []
     ];
+    public $morphOne = [];
     public $morphMany = [];
     public $attachOne = [];
     public $attachMany = [];
