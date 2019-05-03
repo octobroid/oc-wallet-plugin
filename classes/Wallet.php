@@ -7,26 +7,24 @@ use Octobro\Wallet\Models\Log as WalletLog;
 
 class Wallet
 {
-    static function use($invoice, $amount = null)
+    static function use($owner, $ownerName, $invoice, $amount = null, $cashbackPercentage = null)
     {
-        $user = $invoice->user;
-
-        if (!$user) {
-            throw new ApplicationException('User not found.');
+        if (!$owner) {
+            throw new ApplicationException('Owner not found.');
         }
 
         if (!$amount) {
             // By default, it will use all the wallet amount
-            $amount = min($invoice->total, $user->wallet_amount);
+            $amount = min($invoice->total, $owner->wallet_amount);
         }
 
         if (!$amount) return;
 
-        if ($user->wallet_amount < $amount) {
+        if ($owner->wallet_amount < $amount) {
             throw new ApplicationException('Insufficient balance.');
         }
 
-        $walletLog = WalletLog::createLog($invoice, $user, (- $amount), null, 'Wallet usage for Invoice #' . $invoice->id);
+        $walletLog = WalletLog::createLog($invoice, $owner, $ownerName, (- $amount), null, 'Wallet usage for Invoice #' . $invoice->id);
         
         $invoiceItem = new InvoiceItem([
             'invoice_id'  => $invoice->id,

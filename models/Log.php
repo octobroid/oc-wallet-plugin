@@ -53,41 +53,7 @@ class Log extends Model
         }
     }
 
-    public static function addCashback($order, $owner, $desc = null, $status = null)
-    {
-        Db::beginTransaction();
-
-        if (!$order) throw new ApplicationException('Order not found');
-
-        if (!$owner) throw new ApplicationException('Owner not found');
-
-        try {
-            $cashback = CashbackHelper::calculate($order);
-            $prevWalletAmount = $owner->wallet_amount;
-
-            $log = new static;
-            $log->description = $desc;
-            $log->previous_amount = $prevWalletAmount;
-            $log->updated_amount = $prevWalletAmount + $cashback;
-            $log->amount = $cashback;
-            $log->owner_id = $owner->id;
-            $log->owner_type = get_class($owner);
-            $log->related_id = $order->id;
-            $log->related_type = get_class($order);
-            $log->status = $status;
-            $log->save();
-
-            $owner->wallet_amount = $prevWalletAmount + $cashback;
-            $owner->save();
-        } catch (Exception $e) {
-            Db::rollback();
-            throw new ApplicationException($e->getMessage());
-        }
-
-        Db::commit();
-    }
-
-    public static function createLog($related, $owner, $amount, $status = null, $desc = null)
+    public static function createLog($related, $owner, $ownerName, $amount, $status = null, $desc = null)
     {
         Db::beginTransaction();
 
@@ -100,6 +66,7 @@ class Log extends Model
             $updatedAmount = $prevWalletAmount + $amount;
 
             $log = new static;
+            $log->owner_name = $ownerName;
             $log->owner_id = $owner->id;
             $log->owner_type = get_class($owner);
             $log->description = $desc;

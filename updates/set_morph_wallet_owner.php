@@ -15,8 +15,9 @@ class ModifyRelatedColumnsOnLogsTable extends Migration
         Schema::table('octobro_wallet_logs', function(Blueprint $table) {
             $table->dropColumn('user_id');
 
-            $table->integer('owner_id')->unsigned()->nullable()->after('id');
-            $table->string('owner_type')->nullable()->after('owner_id');
+            $table->string('owner_name')->nullable()->after('id');
+            $table->integer('owner_id')->unsigned()->nullable()->index()->after('owner_name');
+            $table->string('owner_type')->nullable()->index()->after('owner_id');
         });
     }
 
@@ -29,6 +30,7 @@ class ModifyRelatedColumnsOnLogsTable extends Migration
         Schema::table('octobro_wallet_logs', function(Blueprint $table) {
             $table->integer('user_id')->unsigned()->index()->after('id');
 
+            $table->dropColumn('owner_name');
             $table->dropColumn('owner_id');
             $table->dropColumn('owner_type');
         });

@@ -7,6 +7,10 @@ columns:
         label: ID
         clickable: false
 
+    owner_name:
+        label: User
+        searchable: true
+
     description:
         label: description
         searchable: true
