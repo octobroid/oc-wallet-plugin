@@ -11,3 +11,6 @@
 1.1.0:
     - Set owner morph in wallet for various models
     - set_morph_wallet_owner.php
+1.1.1:
+    - Add column is_use_wallet to Invoice table
+    - add_is_use_wallet_invoice.php

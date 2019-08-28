@@ -7,7 +7,21 @@ use Octobro\Wallet\Models\Log as WalletLog;
 
 class Wallet
 {
-    static function use($owner, $ownerName, $invoice, $amount = null, $cashbackPercentage = null)
+    static function deposit($owner, $ownerName, $invoice, $amount, $description = null)
+    {
+        $walletLog = WalletLog::createLog($invoice, $owner, $ownerName, $amount, null, $description);
+
+        /**
+         * Extensibility
+         */
+        if (Event::fire('octobro.wallet.afterDeposit', [$invoice, $amount], true) === false) {
+            return false;
+        }
+
+        return $walletLog;
+    }
+
+    static function use($owner, $ownerName, $invoice, $amount, $cashbackPercentage = null)
     {
         if (!$owner) {
             throw new ApplicationException('Owner not found.');
@@ -30,20 +44,42 @@ class Wallet
             'invoice_id'  => $invoice->id,
             'description' => 'Wallet Usage',
             'quantity'    => 1,
-            'price'       => 0,
-            'discount'    => $amount,
+            'price'       => -$amount,
             'related'     => $walletLog,
         ]);
 
         $invoice->items()->save($invoiceItem);
-
-        $invoice->save();
+        $invoice->touchTotals();
 
         if ($invoice->total == 0 && $invoice->markAsPaymentProcessed()) {
             $invoice->updateInvoiceStatus('paid');
         }
 
-        Event::fire('octobro.wallet.afterUseWallet', [$invoice, $amount]);
+
+        /**
+         * Extensibility
+         */
+        if (Event::fire('octobro.wallet.afterUseWallet', [$invoice, $amount], true) === false) {
+            return false;
+        }
+
+        return $walletLog;
+    }
+
+    static function remove($owner, $ownerName, $invoice)
+    {
+        $amount = (-$invoice->items()->where('description', 'Wallet Usage')->first()->total);
+
+        $walletLog = WalletLog::createLog($invoice, $owner, $ownerName, $amount, null, 'Cancel wallet usage for Invoice #' . $invoice->id);
+        $invoice->items()->where('description', 'Wallet Usage')->delete();
+        $invoice->touchTotals();
+
+        /**
+         * Extensibility
+         */
+        if (Event::fire('octobro.wallet.afterUseWallet', [$invoice, $amount], true) === false) {
+            return false;
+        }
 
         return $walletLog;
     }

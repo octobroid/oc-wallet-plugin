@@ -1,14 +1,11 @@
 <?php namespace Octobro\Wallet\Components;
 
-use Auth;
-use Flash;
+use Redirect;
 use ApplicationException;
 use Cms\Classes\ComponentBase;
 use Octobro\Wallet\Classes\Wallet as WalletHelper;
 use Responsiv\Pay\Models\Invoice;
 use Responsiv\Pay\Models\PaymentMethod as TypeModel;
-use Responsiv\Pay\Models\InvoiceItem;
-use Octobro\Wallet\Models\Log as WalletLog;
 
 class Wallet extends ComponentBase
 {
@@ -40,6 +37,17 @@ class Wallet extends ComponentBase
                 'description'   => 'The ID of owner model.',
                 'default'       => '{{ :ownerId }}',
                 'type'          => 'string'
+            ],
+            'ownerName' => [
+                'title'         => 'Owner name',
+                'description'   => 'The name of the wallet owner.',
+                'default'       => '{{ :ownerName }}',
+                'type'          => 'string'
+            ],
+            'updatePartial' => [
+                'title'         => 'Update partial',
+                'description'   => "Variable used for updating additional partial when 'pay with wallet' checkbox is toggled.",
+                'type'          => 'string'
             ]
         ];
     }
@@ -48,41 +56,44 @@ class Wallet extends ComponentBase
     {
         if (!$this->property('ownerClass')) throw new ApplicationException('Owner class not found');
 
-        if (!class_exists($this->propery('ownerClass'))) throw new ApplicationException('Class for invoice owner not found');
+        if (!class_exists($this->property('ownerClass'))) throw new ApplicationException('Class for invoice owner not found');
 
         if (!$this->property('ownerId')) throw new ApplicationException('Owner ID not found');
 
         $this->page['owner'] = $owner = $this->property('ownerClass')::find($this->property('ownerId'));
 
         if (!$owner) throw new ApplicationException('Owner not found');
+
+        $this->page['updatePartial'] = $this->property('updatePartial');
     }
 
     public function onToggleWallet()
     {
-        if (!$this->property('invoiceHash')) throw new ApplicationException('Invoice hash not found');
-
-        if (!$this->property('ownerClass')) throw new ApplicationException('Owner class not found');
-
-        if (!class_exists($this->propery('ownerClass'))) throw new ApplicationException('Class for invoice owner not found');
-
-        if (!$this->property('ownerId')) throw new ApplicationException('Owner ID not found');
-
         $invoice = Invoice::whereHash($this->property('invoiceHash'))->first();
 
         if (! $invoice) {
             throw new ApplicationException('Invoice not found');
         }
 
-        $owner = $this->property('ownerClass')::find($this->property('ownerId'));
+        $owner = $this->property('ownerClass')::find(post('ownerId'));
 
-        if (!$owner) throw new ApplicationException('Owner not found');
+        if ($invoice->is_use_wallet == 1) {
+            WalletHelper::remove($owner, post('ownerName'), $invoice);
+            $invoice->is_use_wallet = false;
+        } else {
+            $amount = $owner->wallet_amount >= $invoice->total ? $invoice->total : $owner->wallet_amount;
+            WalletHelper::use($owner, post('ownerName'), $invoice, $amount);
+            $invoice->is_use_wallet = true;
+        }
+
+        $invoice->save();
+
+        $this->page['invoice'] = $invoice;
 
         /**
          * User could pay with their whole wallet amount.
          **/
-        if ($owner->wallet_amount >= $invoice->total and post('use_wallet') == 0) {
-            $this->page['invoice'] = $invoice;
-
+        if ($owner->wallet_amount >= $invoice->total and $invoice->is_use_wallet) {
             return true;
         }
 
@@ -90,51 +101,21 @@ class Wallet extends ComponentBase
          * Wallet amount could only pay for some of the invoice
          **/
         $this->page['paymentMethods'] = TypeModel::listApplicable($invoice->country_id);
+        $this->page['paymentMethod'] = $invoice->payment_method;
     }
 
-    /**
-     * Ajax for paying invoice using wallet
-     */
-    public function onUseWallet()
+    public function onFullPayment()
     {
-        if (!$this->property('invoiceHash')) {
-            throw new ApplicationException('Invoice hash not found');
-        }
-
-        if (!$this->property('ownerClass')) {
-            throw new ApplicationException('Class name for invoice owner not found');
-        }
-
-        if (!class_exists($this->propery('ownerClass'))) {
-            throw new ApplicationException('Class for invoice owner not found');
-        }
-
-        if (!$this->property('ownerId')) {
-            throw new ApplicationException('Owner ID not found');
-        }
-
-        if (post('use_wallet') <= 0) return;
-
-        if (post('wallet_amount') <= 0) return;
-
         $invoice = Invoice::whereHash($this->property('invoiceHash'))->first();
 
-        if (!$invoice) {
+        if (! $invoice) {
             throw new ApplicationException('Invoice not found');
         }
 
-        $owner = $this->property('ownerClass')::find($this->property('ownerId'));
+        $invoice->logPaymentAttempt('Successful payment', 1, [], null, null);
+        $invoice->markAsPaymentProcessed();
+        $invoice->updateInvoiceStatus('paid');
 
-        if (!$owner) {
-            throw new ApplicationException('Owner data not found');
-        }
-
-        $ownerName = Schema::hasColumn($owner->getTable(), 'name') ? $owner->name : post('owner_name');
-
-        $amount = post('use_full_wallet') == true ? $invoice->total : post('wallet_amount');
-
-        WalletHelper::use($owner, $ownerName, $invoice, $amount, null);
-
-        return \Redirect::to($invoice->getReceiptUrl());
+        return Redirect::to($invoice->getReceiptUrl());
     }
 }

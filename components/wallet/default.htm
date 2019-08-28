@@ -1,3 +1,21 @@
-<p>This is the default markup for component Wallet</p>
+<div id="wallet" class="mb-1">
+    {% if owner.wallet_amount > 0 or invoice.is_use_wallet %}
+        <label class="checkbox-inline">
+            <input type="checkbox" id="use_wallet" name="toggle_wallet"
+                data-request="wallet::onToggleWallet"
+                data-request-data="'ownerId': '{{ owner.id }}', 'ownerName': '{{ owner.name }}'"
+                data-request-update="'@full_payment_btn': '#fullPaymentBtn'{{ updatePartial ? ', ' ~ updatePartial }}"
+                {{ invoice.is_use_wallet ? 'checked' }}
+                >
+                {% if owner.wallet_amount >= invoice.total %}
+                    Pay with wallet
+                {% else %}
+                    Use wallet with the amount of {{ owner.wallet_amount|currency({ format: 'short' }) }}
+                {% endif %}
+        </label>
+    {% endif %}
+</div>
 
-<small>You can delete this file if you want</small>
+<div id="fullPaymentBtn">
+    {% partial '@full_payment_btn' %}
+</div>

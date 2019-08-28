@@ -1,5 +1,7 @@
 # oc-wallet-plugin
-Wallet plugin for OctoberCMS
+Wallet system for OctoberCMS. Allow the use of wallet within payment system.
+
+This plugin requires [Responsiv.Pay](https://github.com/responsiv/pay-plugin).
 
 ## Installation
 
@@ -100,6 +102,48 @@ UsersController::extendFormFields(function($form, $model, $context) {
     $form->addTabFields($config);
 });
 ```
+
+## Using Component
+
+You can use `wallet` component by adding that to your page.
+
+```php
+title = "Payment"
+url = "/payment/:hash"
+layout = "default"
+is_hidden = 0
+
+[wallet]
+invoiceHash = "{{ :hash }}"
+ownerClass = "RainLab\User\Models\User"
+updatePartial = "'payment::default': '#paymentMethods'"
+
+[payment]
+hash = "{{ :hash }}"
+
+==
+use Responsiv\Pay\Models\Invoice;
+
+function onStart()
+{
+    $invoice = Invoice::whereHash($this->param('hash'))->first();
+	$this->page->components['wallet']->setProperty('ownerId', $invoice->related->user_id);
+	$this->page->components['wallet']->setProperty('ownerName', $invoice->related->user->name);
+}
+==
+
+<div id="paymentMethods">
+    {% component 'payment' %}
+</div>
+
+<div id="wallet">
+    {% component 'wallet' %}
+</div>
+```
+
+Note that for `ownerId` and `ownerName` property currently needed to be set manually inside `onStart` function in the page. See information about page execution life cycle [here](https://octobercms.com/docs/plugin/components#page-cycle-handlers).
+
+You can also use the `updatePartial` property if you want to update any partial dynamically everytime the "pay with wallet" checkbox is toggled.
 
 ## License
 
