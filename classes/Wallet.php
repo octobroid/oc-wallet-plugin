@@ -66,21 +66,13 @@ class Wallet
         return $walletLog;
     }
 
-    static function remove($owner, $ownerName, $invoice)
+    static function remove($owner, $invoice)
     {
         $amount = (-$invoice->items()->where('description', 'Wallet Usage')->first()->total);
 
-        $walletLog = WalletLog::createLog($invoice, $owner, $ownerName, $amount, null, 'Cancel wallet usage for Invoice #' . $invoice->id);
+        $owner->increment('wallet_amount', $amount);
+        $owner->wallet_logs()->where('related_id', $invoice->id)->delete();
         $invoice->items()->where('description', 'Wallet Usage')->delete();
         $invoice->touchTotals();
-
-        /**
-         * Extensibility
-         */
-        if (Event::fire('octobro.wallet.afterUseWallet', [$invoice, $amount], true) === false) {
-            return false;
-        }
-
-        return $walletLog;
     }
 }

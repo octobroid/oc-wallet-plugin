@@ -78,7 +78,7 @@ class Wallet extends ComponentBase
         $owner = $this->property('ownerClass')::find(post('ownerId'));
 
         if ($invoice->is_use_wallet == 1) {
-            WalletHelper::remove($owner, post('ownerName'), $invoice);
+            WalletHelper::remove($owner, $invoice);
             $invoice->is_use_wallet = false;
         } else {
             $amount = $owner->wallet_amount >= $invoice->total ? $invoice->total : $owner->wallet_amount;
