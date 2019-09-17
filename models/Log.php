@@ -61,6 +61,7 @@ class Log extends Model
         if (!$owner) throw new ApplicationException('Owner not found');
 
         try {
+            $owner->reload();
             $prevWalletAmount = $owner->wallet_amount;
             $updatedAmount = $prevWalletAmount + $amount;
 
