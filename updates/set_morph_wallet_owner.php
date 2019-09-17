@@ -4,7 +4,7 @@ use Schema;
 use October\Rain\Database\Schema\Blueprint;
 use October\Rain\Database\Updates\Migration;
 
-class ModifyRelatedColumnsOnLogsTable extends Migration
+class SetMorphWalletOwner extends Migration
 {
     public function up()
     {
