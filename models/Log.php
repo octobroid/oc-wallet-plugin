@@ -54,13 +54,15 @@ class Log extends Model
 
     public static function createLog($related, $owner, $ownerName, $amount, $status = null, $desc = null)
     {
-        Db::beginTransaction();
-
         if (!$related) throw new ApplicationException('Related not found');
-
+        
         if (!$owner) throw new ApplicationException('Owner not found');
-
+        
+        if (!$amount || $amount == 0) return;
+        
         try {
+            Db::beginTransaction();
+
             $owner->reload();
             $prevWalletAmount = $owner->wallet_amount;
             $updatedAmount = $prevWalletAmount + $amount;
@@ -84,11 +86,11 @@ class Log extends Model
 
             $owner->wallet_amount = $updatedAmount;
             $owner->save();
+
+            Db::commit();
         } catch (Exception $e) {
             Db::rollback();
             throw new ApplicationException($e->getMessage());
         }
-
-        Db::commit();
     }
 }
