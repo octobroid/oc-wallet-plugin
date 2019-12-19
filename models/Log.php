@@ -67,7 +67,7 @@ class Log extends Model
             $prevWalletAmount = $owner->wallet_amount;
             $updatedAmount = $prevWalletAmount + $amount;
 
-            $log = new static;
+            $log = new self();
             $log->owner_name = $ownerName;
             $log->owner_id = $owner->id;
             $log->owner_type = get_class($owner);
@@ -90,7 +90,9 @@ class Log extends Model
             Db::commit();
         } catch (Exception $e) {
             Db::rollback();
-            throw new ApplicationException($e->getMessage());
+            throw $e;
         }
+
+        return $log;
     }
 }
