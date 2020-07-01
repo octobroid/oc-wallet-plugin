@@ -1,0 +1,12 @@
+{{ form_ajax(__SELF__ ~ '::onSubmit') }}
+
+    <div class="form-group">
+        <label for="">Top Up Amount</label>
+        <input type="number" min="{{ __SELF__.property('minAmount') }}" name="amount" class="form-control form-control-lg" required>
+    </div>
+
+    <div class="form-group">
+        <button type="submit" class="btn btn-primary btn-lg">Go to Payment</button>
+    </div>
+
+{{ form_close() }}

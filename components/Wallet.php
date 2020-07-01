@@ -64,6 +64,16 @@ class Wallet extends ComponentBase
 
         if (!$owner) throw new ApplicationException('Owner not found');
 
+        $this->page['wallet_available_balance'] = WalletHelper::getAvailableBalance($owner);
+
+        $invoice = Invoice::whereHash($this->property('invoiceHash'))->first();
+
+        if (! $invoice) {
+            throw new ApplicationException('Invoice not found');
+        }
+
+        $this->page['wallet_usage_invoice_item'] = WalletHelper::getWalletUsageInvoiceItem($invoice);
+
         $this->page['updatePartial'] = $this->property('updatePartial');
     }
 
@@ -75,47 +85,24 @@ class Wallet extends ComponentBase
             throw new ApplicationException('Invoice not found');
         }
 
-        $owner = $this->property('ownerClass')::find(post('ownerId'));
+        $owner = $this->property('ownerClass')::find($this->property('ownerId'));
 
         if ($invoice->is_use_wallet == 1) {
-            WalletHelper::remove($owner, $invoice);
-            $invoice->is_use_wallet = false;
+            WalletHelper::remove($invoice);
         } else {
-            $amount = $owner->wallet_amount >= $invoice->total ? $invoice->total : $owner->wallet_amount;
-            WalletHelper::use($owner, post('ownerName'), $invoice, $amount);
-            $invoice->is_use_wallet = true;
+            WalletHelper::hold($owner, $invoice, post('amount'));
         }
 
-        $invoice->save();
+        if (!$this->property('updatePartial')) {
+            return redirect()->refresh();
+        }
 
         $this->page['invoice'] = $invoice;
-
-        /**
-         * User could pay with their whole wallet amount.
-         **/
-        if ($owner->wallet_amount >= $invoice->total and $invoice->is_use_wallet) {
-            return true;
-        }
-
+        
         /**
          * Wallet amount could only pay for some of the invoice
          **/
         $this->page['paymentMethods'] = TypeModel::listApplicable($invoice->country_id);
         $this->page['paymentMethod'] = $invoice->payment_method;
-    }
-
-    public function onFullPayment()
-    {
-        $invoice = Invoice::whereHash($this->property('invoiceHash'))->first();
-
-        if (! $invoice) {
-            throw new ApplicationException('Invoice not found');
-        }
-
-        $invoice->logPaymentAttempt('Successful payment', 1, [], null, null);
-        $invoice->markAsPaymentProcessed();
-        $invoice->updateInvoiceStatus('paid');
-
-        return Redirect::to($invoice->getReceiptUrl());
     }
 }

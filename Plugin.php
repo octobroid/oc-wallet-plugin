@@ -72,7 +72,8 @@ class Plugin extends PluginBase
     public function registerComponents()
     {
         return [
-            'Octobro\Wallet\Components\Wallet' => 'wallet',
+            'Octobro\Wallet\Components\Wallet'      => 'wallet',
+            'Octobro\Wallet\Components\WalletTopUp' => 'walletTopUp',
         ];
     }
 

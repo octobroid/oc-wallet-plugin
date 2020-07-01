@@ -1,12 +1,26 @@
 <?php namespace Octobro\Wallet\Classes;
 
+use Db;
 use Event;
+use Exception;
+use Carbon\Carbon;
 use ApplicationException;
 use Responsiv\Pay\Models\InvoiceItem;
 use Octobro\Wallet\Models\Log as WalletLog;
+use Octobro\Wallet\Models\Usage;
 
 class Wallet
 {
+    static function getAvailableBalance($owner)
+    {
+        $onHoldWalletAmount = Usage::whereOwnerType(get_class($owner))
+            ->whereOwnerId($owner->id)
+            ->whereStatus(Usage::STATUS_HOLD)
+            ->sum('amount');
+
+        return $owner->wallet_amount - $onHoldWalletAmount;
+    }
+
     static function deposit($owner, $ownerName, $invoice, $amount, $description = null)
     {
         $walletLog = WalletLog::createLog($invoice, $owner, $ownerName, $amount, null, $description);
@@ -21,58 +35,90 @@ class Wallet
         return $walletLog;
     }
 
-    static function use($owner, $ownerName, $invoice, $amount, $cashbackPercentage = null)
+    static function hold($owner, $invoice, $amount = null)
     {
         if (!$owner) {
             throw new ApplicationException('Owner not found.');
         }
 
-        if (!$amount) {
+        $availableBalance = self::getAvailableBalance($owner);
+
+        if ($amount == null) {
             // By default, it will use all the wallet amount
-            $amount = min($invoice->total, $owner->wallet_amount);
+            $amount = min($invoice->total, $availableBalance);
         }
 
-        if (!$amount) return;
-
-        if ($owner->wallet_amount < $amount) {
+        if (!$availableBalance || $availableBalance < $amount) {
             throw new ApplicationException('Insufficient balance.');
         }
 
-        $walletLog = WalletLog::createLog($invoice, $owner, $ownerName, (- $amount), null, 'Wallet usage for Invoice #' . $invoice->id);
-        
-        $invoiceItem = new InvoiceItem([
-            'invoice_id'  => $invoice->id,
-            'description' => 'Wallet Usage',
-            'quantity'    => 1,
-            'price'       => -$amount,
-            'related'     => $walletLog,
-        ]);
+        try {
+            Db::beginTransaction();
+            $walletUsage = new Usage();
+            $walletUsage->owner = $owner;
+            $walletUsage->amount = $amount;
+            $walletUsage->save();
 
-        $invoice->items()->save($invoiceItem);
-        $invoice->touchTotals();
+            $invoiceItem = new InvoiceItem([
+                'invoice_id'  => $invoice->id,
+                'description' => 'Wallet Usage',
+                'quantity'    => 1,
+                'price'       => -$amount,
+                'related'     => $walletUsage,
+            ]);
+    
+            $invoice->items()->save($invoiceItem);
+    
+            $invoice->is_use_wallet = true;
+            $invoice->save();
+    
+            /**
+             * Extensibility
+             */
+            if (Event::fire('octobro.wallet.afterUseWallet', [$invoice, $amount], true) === false) {
+                return false;
+            }
 
-        if ($invoice->total == 0 && $invoice->markAsPaymentProcessed()) {
-            $invoice->updateInvoiceStatus('paid');
+            Db::commit();
+        }
+        catch (Exception $ex) {
+            Db::rollBack();
+            throw $ex;
         }
 
-
-        /**
-         * Extensibility
-         */
-        if (Event::fire('octobro.wallet.afterUseWallet', [$invoice, $amount], true) === false) {
-            return false;
-        }
-
-        return $walletLog;
+        return $walletUsage;
     }
 
-    static function remove($owner, $invoice)
+    static function getWalletUsageInvoiceItem($invoice)
     {
-        $amount = (-$invoice->items()->where('description', 'Wallet Usage')->first()->total);
+        return $invoice->items()->whereRelatedType('Octobro\Wallet\Models\Usage')->first();
+    }
 
-        $owner->increment('wallet_amount', $amount);
-        $owner->wallet_logs()->where('related_id', $invoice->id)->delete();
-        $invoice->items()->where('description', 'Wallet Usage')->delete();
-        $invoice->touchTotals();
+    static function use($invoice)
+    {
+        $walletUsageItem = static::getWalletUsageInvoiceItem($invoice);
+
+        if (!$walletUsageItem) return;
+
+        $walletUsage = $walletUsageItem->related;
+
+        $walletUsage->status  = Usage::STATUS_USED;
+        $walletUsage->used_at = Carbon::now();
+        $walletUsage->save();
+
+        WalletLog::createLog($invoice, $walletUsage->owner, null, -$walletUsage->amount, null, 'Wallet Usage for Invoice #' . $invoice->id);
+    }
+
+    static function remove($invoice)
+    {
+        $walletUsageItem = static::getWalletUsageInvoiceItem($invoice);
+
+        if (!$walletUsageItem) return;
+
+        $walletUsageItem->related->delete();
+        $walletUsageItem->delete();
+
+        $invoice->is_use_wallet = false;
+        $invoice->save();
     }
 }

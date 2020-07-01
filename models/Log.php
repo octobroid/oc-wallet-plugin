@@ -54,7 +54,7 @@ class Log extends Model
 
     public static function createLog($related, $owner, $ownerName, $amount, $status = null, $desc = null)
     {
-        if (!$related) throw new ApplicationException('Related not found');
+        // if (!$related) throw new ApplicationException('Related not found');
         
         if (!$owner) throw new ApplicationException('Owner not found');
         
