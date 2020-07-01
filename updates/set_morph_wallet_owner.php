@@ -16,7 +16,7 @@ class SetMorphWalletOwner extends Migration
             $table->dropColumn('user_id');
 
             $table->string('owner_name')->nullable()->after('id');
-            $table->integer('owner_id')->unsigned()->nullable()->index()->after('owner_name');
+            $table->string('owner_id')->nullable()->index()->after('owner_name');
             $table->string('owner_type')->nullable()->index()->after('owner_id');
         });
     }
