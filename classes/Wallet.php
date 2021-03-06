@@ -115,7 +115,9 @@ class Wallet
 
         if (!$walletUsageItem) return;
 
-        $walletUsageItem->related->delete();
+        if ($walletUsageItem->related) {
+            $walletUsageItem->related->delete();
+        }
         $walletUsageItem->delete();
 
         $invoice->is_use_wallet = false;
