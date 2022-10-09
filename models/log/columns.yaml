@@ -6,6 +6,11 @@ columns:
     id:
         label: ID
         clickable: false
+    
+    created_at:
+        label: Date
+        searchable: true
+        type: datetime
 
     owner_name:
         label: User
